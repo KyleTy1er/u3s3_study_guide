@@ -1,49 +1,38 @@
-
-
 from flask import Blueprint, jsonify, request, render_template
+import requests
+import bs4
+from bgg_flask_sql.models import Game, db, migrate
 
 admin_routes = Blueprint("bgg_flask_routes", __name__)
-home_routes = Blueprint("bgg_flask_routes", __name__)
+bgg_flask_routes = Blueprint("bgg_flask_routes", __name__)
 
-@admin_routes.route("/reset", methods=['GET', 'POST'])
-def reset_db():
-    print("RESET ROUTE...")
-    print("FORM DATA:", dict(request.form))
-    print(type(db))
-    db.drop_all()
-    db.create_all()
-    return render_template("reset_db.html", db=db)
 
-def store_twitter_user_data(screen_name):
-    api = api_client()
-    twitter_user = api.get_user(screen_name)
-    #statuses = api.user_timeline(screen_name, tweet_mode="extended", count=150, exclude_replies=True, include_rts=False)
-    statuses = api.user_timeline(screen_name, tweet_mode="extended", count=150)
-    #return jsonify({"user": user._json, "tweets": [s._json for s in statuses]})
+@bgg_flask_routes.route("/<game_id>", methods=['GET', 'POST', 'PULL'])
+def get_game_data(game_id):
+    game_id = game_id
+    url = 'https://www.boardgamegeek.com/xmlapi/boardgame/' + str(game_id)
+    result = requests.get(url)
+    soup = bs4.BeautifulSoup(result.text, features='lxml')
+    game_name = (soup.find('name').text)
+    max_players = (soup.find('maxplayers').text)
+    return render_template("temp.html", max_players=max_players, game_name=game_name, game_id=game_id)
 
-    db_user = User.query.get(twitter_user.id) or User(id=twitter_user.id)
-    db_user.screen_name = twitter_user.screen_name
-    db_user.name = twitter_user.name
-    db_user.location = twitter_user.location
-    db_user.followers_count = twitter_user.followers_count
-    db.session.add(db_user)
+
+@bgg_flask_routes.route("/store/<game_id>")
+def store_game_data(game_id):
+    game_id = game_id
+    url = 'https://www.boardgamegeek.com/xmlapi/boardgame/' + str(game_id)
+    result = requests.get(url)
+    soup = bs4.BeautifulSoup(result.text, features='lxml')
+    db_game = Game.query.get(soup.find('name').text)
+    db_game_id.id = game_id
+    db_game.name = (db.find('name').text)
+    db_max_players.max_players = (db.find('maxplayers').text)
+    db.session.add(db_game)
     db.session.commit()
 
-@twitter_routes.route("/users.json")
-def list_users():
-    # assigns the result of querying the user table from the sqlite database that is assigned in the __init__ file "kyle_twitter_db.db" to
-    # the variable db_users
-    db_users = User.query.all()
-
-    users = parse_records(db_users)
-    return jsonify(users)
-
-@home_routes.route("/")
-def index():
-    print("VISITED THE HOME PAGE")
-    return render_template("prepare_to_predict.html")
-
-@home_routes.route("/")
-def index():
-    print("VISITED THE HOME PAGE")
-    return render_template("prepare_to_predict.html")
+    # db_game = Game.db_game()
+    # db_game.name = game_name
+    # db_game.max_players = max_players
+    # db.session.add(db_game)
+    # db.session.commit()
